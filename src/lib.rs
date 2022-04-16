@@ -53,6 +53,10 @@ pub struct Frame {
     pub bitrate: i32,
 }
 
+pub struct DecoderOption {
+
+}
+
 impl<R> Decoder<R> {
     /// Creates a new decoder, consuming the `reader`.
     pub fn new(reader: R) -> Self {

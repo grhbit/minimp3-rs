@@ -1,7 +1,8 @@
 extern crate minimp3_sys;
 
-use std::io;
+use std::{convert::TryInto, io};
 use std::mem;
+use std::ptr;
 
 use std::io::Write;
 
@@ -27,8 +28,30 @@ fn decode_frame(
     }
 }
 
+fn load_buf(
+    ctx: &mut minimp3_sys::mp3dec_t,
+    mp3_file: &[u8],
+    file_info: &mut minimp3_sys::mp3dec_file_info_t,
+) -> Result<(), i32> {
+    let errno = unsafe {
+        minimp3_sys::mp3dec_load_buf(
+            ctx,
+            mp3_file.as_ptr(),
+            mp3_file.len() as _,
+            file_info,
+            None,
+            ptr::null_mut(),
+        )
+    };
+
+    match errno {
+        0 => Ok(()),
+        _ => Err(errno),
+    }
+}
+
 fn main() {
-    let mp3 = include_bytes!("../minimp3/vectors/M2L3_bitrate_24_all.bit");
+    let mp3 = include_bytes!("../test.mp3");
 
     let mut context = unsafe { mem::zeroed() };
 
@@ -40,10 +63,24 @@ fn main() {
     // frame info
     let mut frame: minimp3_sys::mp3dec_frame_info_t = unsafe { mem::zeroed() };
 
+    // file info
+    let mut file: minimp3_sys::mp3dec_file_info_t = unsafe { mem::zeroed() };
+
+    match load_buf(&mut context, &mp3[..], &mut file) {
+        Ok(_) => println!("Success!"),
+        Err(errno) => panic!("Errno => {}", errno),
+    };
+
     let mut offset = 0usize;
     let mut stdout = io::stdout();
 
-    while let Some(samples) = decode_frame(&mut context, &mp3[offset..], &mut pcm, &mut frame) {
+    let size = unsafe {
+        let mut size = (mp3.len() - offset).try_into().unwrap();
+        minimp3_sys::mp3dec_skip_id3(&mut mp3[offset..].as_ptr(), &mut size);
+        size as _
+    };
+
+    while let Some(samples) = decode_frame(&mut context, &mp3[offset..size], &mut pcm, &mut frame) {
         //eprintln!("frame {:?}", frame);
         offset += frame.frame_bytes as usize;
 

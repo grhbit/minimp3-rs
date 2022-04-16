@@ -4,7 +4,7 @@ use std::fs::File;
 
 fn main() {
     let mut decoder =
-        Decoder::new(File::open("minimp3-sys/minimp3/vectors/M2L3_bitrate_24_all.bit").unwrap());
+        Decoder::new(File::open("minimp3-sys/test.mp3").unwrap());
 
     loop {
         match decoder.next_frame() {
